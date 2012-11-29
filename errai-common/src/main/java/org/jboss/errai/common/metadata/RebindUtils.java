@@ -5,6 +5,8 @@ import com.google.gwt.core.ext.GeneratorContext;
 import com.google.gwt.core.ext.typeinfo.JPackage;
 import com.google.gwt.dev.cfg.ModuleDef;
 import com.google.gwt.dev.javac.StandardGeneratorContext;
+
+import org.apache.commons.digester.RegexMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -40,6 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 
 /**
  * @author Mike Brock <cbrock@redhat.com>
@@ -56,11 +59,13 @@ public class RebindUtils {
       return _tempDirectory;
     }
 
-    final String useramePortion = System.getProperty("user.name").replaceAll("[^0-9a-zA-Z]", "-");
-    final File file = new File(System.getProperty("java.io.tmpdir") + "/" + useramePortion + "/errai/" + getClasspathHash() + "/");
+    final String useramePortion = System.getProperty("user.name").replaceAll(
+            "[^0-9a-zA-Z]", "-");
+    final File file = new File(System.getProperty("java.io.tmpdir") + "/"
+            + useramePortion + "/errai/" + getClasspathHash() + "/");
 
     if (!file.exists()) {
-      //noinspection ResultOfMethodCallIgnored
+      // noinspection ResultOfMethodCallIgnored
       file.mkdirs();
     }
 
@@ -69,11 +74,13 @@ public class RebindUtils {
 
   private static volatile String _classpathHashCache;
 
-  private static final String[] hashableExtensions = {".java", ".class", ".properties", ".xml"};
+  private static final String[] hashableExtensions = { ".java", ".class",
+      ".properties", ".xml" };
 
   private static boolean isValidFileType(final String fileName) {
     for (final String extension : hashableExtensions) {
-      if (fileName.endsWith(extension)) return true;
+      if (fileName.endsWith(extension))
+        return true;
     }
     return false;
   }
@@ -87,11 +94,13 @@ public class RebindUtils {
       final MessageDigest md = MessageDigest.getInstance("SHA-1");
       final String classPath = System.getProperty("java.class.path");
 
-      final Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources("");
+      final Enumeration<URL> resources = Thread.currentThread()
+              .getContextClassLoader().getResources("");
 
       md.update(hashSeed.getBytes());
 
-      for (final String p : classPath.split(System.getProperty("path.separator"))) {
+      for (final String p : classPath.split(System
+              .getProperty("path.separator"))) {
         _recurseDir(new File(p), new FileVisitor() {
           @Override
           public void visit(final File f) {
@@ -99,21 +108,21 @@ public class RebindUtils {
             if (isValidFileType(fileName)) {
               md.update(fileName.getBytes());
               final long lastModified = f.lastModified();
-//              md.update((byte) ((lastModified >> 56 & 0xFF)));
-//              md.update((byte) ((lastModified >> 48 & 0xFF)));
-//              md.update((byte) ((lastModified >> 40 & 0xFF)));
-//              md.update((byte) ((lastModified >> 32 & 0xFF)));
+              // md.update((byte) ((lastModified >> 56 & 0xFF)));
+              // md.update((byte) ((lastModified >> 48 & 0xFF)));
+              // md.update((byte) ((lastModified >> 40 & 0xFF)));
+              // md.update((byte) ((lastModified >> 32 & 0xFF)));
               md.update((byte) ((lastModified >> 24 & 0xFF)));
               md.update((byte) ((lastModified >> 16 & 0xFF)));
               md.update((byte) ((lastModified >> 8 & 0xFF)));
               md.update((byte) ((lastModified & 0xFF)));
 
               final long length = f.length();
-//
-//              md.update((byte) ((length >> 56 & 0xFF)));
-//              md.update((byte) ((length >> 48 & 0xFF)));
-//              md.update((byte) ((length >> 40 & 0xFF)));
-//              md.update((byte) ((length >> 32 & 0xFF)));
+              //
+              // md.update((byte) ((length >> 56 & 0xFF)));
+              // md.update((byte) ((length >> 48 & 0xFF)));
+              // md.update((byte) ((length >> 40 & 0xFF)));
+              // md.update((byte) ((length >> 32 & 0xFF)));
               md.update((byte) ((length >> 24 & 0xFF)));
               md.update((byte) ((length >> 16 & 0xFF)));
               md.update((byte) ((length >> 8 & 0xFF)));
@@ -124,9 +133,9 @@ public class RebindUtils {
       }
 
       return _classpathHashCache = hashToHexString(md.digest());
-    }
-    catch (Exception e) {
-      throw new RuntimeException("failed to generate hash for classpath fingerprint", e);
+    } catch (Exception e) {
+      throw new RuntimeException(
+              "failed to generate hash for classpath fingerprint", e);
     }
   }
 
@@ -140,9 +149,10 @@ public class RebindUtils {
 
   public static File getErraiCacheDir() {
     String cacheDir = System.getProperty("errai.devel.debugCacheDir");
-    if (cacheDir == null) cacheDir = new File(".errai/").getAbsolutePath();
+    if (cacheDir == null)
+      cacheDir = new File(".errai/").getAbsolutePath();
     final File fileCacheDir = new File(cacheDir);
-    //noinspection ResultOfMethodCallIgnored
+    // noinspection ResultOfMethodCallIgnored
     fileCacheDir.mkdirs();
     return fileCacheDir;
   }
@@ -159,9 +169,12 @@ public class RebindUtils {
   private static Boolean _hasClasspathChanged;
 
   public static boolean hasClasspathChanged() {
-    if (nocache) return true;
-    if (_hasClasspathChanged != null) return _hasClasspathChanged;
-    final File hashFile = new File(getErraiCacheDir().getAbsolutePath() + "/classpath.sha");
+    if (nocache)
+      return true;
+    if (_hasClasspathChanged != null)
+      return _hasClasspathChanged;
+    final File hashFile = new File(getErraiCacheDir().getAbsolutePath()
+            + "/classpath.sha");
     final String hashValue = RebindUtils.getClasspathHash();
 
     if (!hashFile.exists()) {
@@ -178,33 +191,38 @@ public class RebindUtils {
     return _hasClasspathChanged = false;
   }
 
-  private static Map<Class<? extends Annotation>, Boolean> _changeMapForAnnotationScope
-      = new HashMap<Class<? extends Annotation>, Boolean>();
+  private static Map<Class<? extends Annotation>, Boolean> _changeMapForAnnotationScope = new HashMap<Class<? extends Annotation>, Boolean>();
 
-  public static boolean hasClasspathChangedForAnnotatedWith(final Set<Class<? extends Annotation>> annotations) {
-    if (Boolean.getBoolean("errai.devel.forcecache")) return true;
+  public static boolean hasClasspathChangedForAnnotatedWith(
+          final Set<Class<? extends Annotation>> annotations) {
+    if (Boolean.getBoolean("errai.devel.forcecache"))
+      return true;
 
     boolean result = false;
     for (final Class<? extends Annotation> a : annotations) {
       /**
-       * We don't terminate prematurely, because we want to cache the hashes for the next run.
+       * We don't terminate prematurely, because we want to cache the hashes for
+       * the next run.
        */
-      if (hasClasspathChangedForAnnotatedWith(a)) result = true;
+      if (hasClasspathChangedForAnnotatedWith(a))
+        result = true;
     }
-
 
     return result;
   }
 
-  public static boolean hasClasspathChangedForAnnotatedWith(final Class<? extends Annotation> annoClass) {
-    if (nocache) return true;
+  public static boolean hasClasspathChangedForAnnotatedWith(
+          final Class<? extends Annotation> annoClass) {
+    if (nocache)
+      return true;
     Boolean changed = _changeMapForAnnotationScope.get(annoClass);
     if (changed == null) {
       final File hashFile = new File(getErraiCacheDir().getAbsolutePath() + "/"
-          + annoClass.getName().replaceAll("\\.", "_") + ".sha");
+              + annoClass.getName().replaceAll("\\.", "_") + ".sha");
 
       final MetaDataScanner singleton = ScannerSingleton.getOrCreateInstance();
-      final String hash = singleton.getHashForTypesAnnotatedWith(hashSeed, annoClass);
+      final String hash = singleton.getHashForTypesAnnotatedWith(hashSeed,
+              annoClass);
 
       if (!hashFile.exists()) {
         writeStringToFile(hashFile, hash);
@@ -227,20 +245,44 @@ public class RebindUtils {
 
   public static void writeStringToFile(final File file, final String data) {
     try {
-      final OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(file, false));
+      final OutputStream outputStream = new BufferedOutputStream(
+              new FileOutputStream(file, false));
       outputStream.write(data.getBytes("UTF-8"));
       outputStream.close();
-    }
-    catch (IOException e) {
+    } catch (IOException e) {
       throw new RuntimeException("could not write file for debug cache", e);
     }
+
+    try {
+      int start = data.indexOf("package");
+      if (start != -1) {
+        int end = data.indexOf(";", start);
+        String packageName = data.substring(8, end).trim();
+        // creates a copy of the generated file with the correct package dirs
+        String packageDirs = packageName.replace(".", "/");
+        String parentPath = file.getParent();
+        
+        if (!parentPath.endsWith(packageDirs)) {
+          // only write it if the original file was not in the right hierarchy
+          String packagePath = parentPath + "/java/" + packageDirs;
+          new File(packagePath).mkdirs();
+          final OutputStream outputStream = new BufferedOutputStream(
+                  new FileOutputStream(packagePath + "/" + file.getName(),
+                          false));
+          outputStream.write(data.getBytes("UTF-8"));
+          outputStream.close();
+        }
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("could not write file for debug cache", e);
+    }
+
   }
 
   public static String readFileToString(final File file) {
     try {
       return Files.toString(file, Charset.forName("UTF-8"));
-    }
-    catch (IOException e) {
+    } catch (IOException e) {
       throw new RuntimeException("could not read file for debug cache", e);
     }
   }
@@ -273,9 +315,11 @@ public class RebindUtils {
     }
   }
 
-  private static final String[] moduleRootExclusions = {"target/", "out/", "build/", "src/", "war/", "exploded/"};
+  private static final String[] moduleRootExclusions = { "target/", "out/",
+      "build/", "src/", "war/", "exploded/" };
 
-  public static String guessWorkingDirectoryForModule(final GeneratorContext context) {
+  public static String guessWorkingDirectoryForModule(
+          final GeneratorContext context) {
     if (context == null) {
       logger.warn("could not determine module location, using CWD (no context)");
       return new File("").getAbsolutePath() + "/";
@@ -285,8 +329,7 @@ public class RebindUtils {
       final Set<String> candidateRoots = new HashSet<String>();
       final String workingDir = new File("").getAbsolutePath();
 
-      Pathcheck:
-      for (final URL url : configUrls) {
+      Pathcheck: for (final URL url : configUrls) {
         String filePath = url.getFile();
         if (filePath.startsWith(workingDir) && filePath.indexOf('!') == -1) {
           final int start = workingDir.length() + 1;
@@ -302,7 +345,8 @@ public class RebindUtils {
             filePath = filePath.substring(start, firstSubDir) + "/";
 
             for (final String excl : moduleRootExclusions) {
-              if (filePath.startsWith(excl)) continue Pathcheck;
+              if (filePath.startsWith(excl))
+                continue Pathcheck;
             }
 
             candidateRoots.add(workingDir + "/" + filePath);
@@ -319,13 +363,13 @@ public class RebindUtils {
           logger.warn(" Multiple Possible Roots for Project -> " + res);
         }
 
-        throw new RuntimeException("ambiguous module locations for GWT module (specify path property for module)");
+        throw new RuntimeException(
+                "ambiguous module locations for GWT module (specify path property for module)");
       }
       else {
         return candidateRoots.iterator().next();
       }
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       throw new RuntimeException("could not determine module package", e);
 
     }
@@ -333,15 +377,16 @@ public class RebindUtils {
 
   private static ModuleDef getModuleDef(final GeneratorContext context) {
     try {
-      final StandardGeneratorContext standardGeneratorContext =
-          (StandardGeneratorContext) context;
+      final StandardGeneratorContext standardGeneratorContext = (StandardGeneratorContext) context;
 
-      Field moduleField = StandardGeneratorContext.class.getDeclaredField("module");
+      Field moduleField = StandardGeneratorContext.class
+              .getDeclaredField("module");
       moduleField.setAccessible(true);
       return (ModuleDef) moduleField.get(standardGeneratorContext);
-    }
-    catch (Throwable t) {
-      throw new RuntimeException("could not get module definition (you may be using an incompatible GWT version)", t);
+    } catch (Throwable t) {
+      throw new RuntimeException(
+              "could not get module definition (you may be using an incompatible GWT version)",
+              t);
     }
   }
 
@@ -352,30 +397,31 @@ public class RebindUtils {
       Field gwtXmlFilesField = ModuleDef.class.getDeclaredField("gwtXmlFiles");
       gwtXmlFilesField.setAccessible(true);
       return (Set<File>) gwtXmlFilesField.get(moduleDef);
-    }
-    catch (Throwable t) {
-      throw new RuntimeException("could not access 'gwtXmlFiles' filed from the module definition " +
-          "(you may be using an incompatible GWT version)");
+    } catch (Throwable t) {
+      throw new RuntimeException(
+              "could not access 'gwtXmlFiles' filed from the module definition "
+                      + "(you may be using an incompatible GWT version)");
     }
   }
 
-  public static Set<String> getOuterTranslatablePackages(final GeneratorContext context) {
+  public static Set<String> getOuterTranslatablePackages(
+          final GeneratorContext context) {
     final Set<File> xmlRoots = getAllModuleXMLs(context);
-    final Set<String> pathRoots = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+    final Set<String> pathRoots = Collections
+            .newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     final List<String> classPathRoots = new ArrayList<String>();
     try {
-      final Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources("");
+      final Enumeration<URL> resources = Thread.currentThread()
+              .getContextClassLoader().getResources("");
 
       while (resources.hasMoreElements()) {
         classPathRoots.add(resources.nextElement().getFile());
       }
-    }
-    catch (IOException e) {
+    } catch (IOException e) {
       e.printStackTrace();
     }
 
-    final ExecutorService executorService
-        = Executors.newCachedThreadPool();
+    final ExecutorService executorService = Executors.newCachedThreadPool();
 
     for (final File xmlFile : xmlRoots) {
       if (xmlFile.exists()) {
@@ -385,54 +431,57 @@ public class RebindUtils {
             InputStream inputStream = null;
             try {
 
-              inputStream = new BufferedInputStream(new FileInputStream(xmlFile));
-              final DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+              inputStream = new BufferedInputStream(
+                      new FileInputStream(xmlFile));
+              final DocumentBuilder builder = DocumentBuilderFactory
+                      .newInstance().newDocumentBuilder();
               final Document document = builder.parse(inputStream);
-              final NodeList moduleNodes = document.getElementsByTagName("module");
+              final NodeList moduleNodes = document
+                      .getElementsByTagName("module");
 
               if (moduleNodes.getLength() > 0) {
                 for (int i = 0; i < moduleNodes.getLength(); i++) {
                   final Node item = moduleNodes.item(i);
                   final String nodeName = item.getNodeName();
-                  if (nodeName.equals("super-source") || nodeName.equals("source")) {
-                    final String path = item.getAttributes().getNamedItem("path").getNodeValue();
-                    final String filePath = new File(xmlFile.getParentFile(), path).getAbsolutePath();
+                  if (nodeName.equals("super-source")
+                          || nodeName.equals("source")) {
+                    final String path = item.getAttributes()
+                            .getNamedItem("path").getNodeValue();
+                    final String filePath = new File(xmlFile.getParentFile(),
+                            path).getAbsolutePath();
 
                     for (final String cpRoot : classPathRoots) {
                       if (filePath.startsWith(cpRoot)) {
                         pathRoots.add(filePath.substring(cpRoot.length())
-                            .replaceAll("/", "\\.").replaceAll("\\\\", "."));
+                                .replaceAll("/", "\\.").replaceAll("\\\\", "."));
                       }
                     }
                   }
                 }
               }
 
-              final File clientPath = new File(xmlFile.getParentFile().getAbsoluteFile(), "client").getAbsoluteFile();
+              final File clientPath = new File(xmlFile.getParentFile()
+                      .getAbsoluteFile(), "client").getAbsoluteFile();
               if (clientPath.exists()) {
                 final String filePath = clientPath.getAbsolutePath();
                 for (final String cpRoot : classPathRoots) {
                   if (filePath.startsWith(cpRoot)) {
-                    pathRoots.add(filePath.substring(cpRoot.length()).replaceAll("/", "\\.").replaceAll("\\\\", "."));
+                    pathRoots.add(filePath.substring(cpRoot.length())
+                            .replaceAll("/", "\\.").replaceAll("\\\\", "."));
                   }
                 }
               }
-            }
-            catch (ParserConfigurationException e) {
+            } catch (ParserConfigurationException e) {
               e.printStackTrace();
-            }
-            catch (SAXException e) {
+            } catch (SAXException e) {
               e.printStackTrace();
-            }
-            catch (IOException e) {
+            } catch (IOException e) {
               logger.error("error accessing module XML file", e);
-            }
-            finally {
+            } finally {
               if (inputStream != null) {
                 try {
                   inputStream.close();
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                   logger.warn("problem closing stream", e);
                 }
               }
@@ -441,15 +490,15 @@ public class RebindUtils {
         });
       }
       else {
-        logger.warn("the GWT module file '" + xmlFile.getAbsolutePath() + "' does not appear to exist.");
+        logger.warn("the GWT module file '" + xmlFile.getAbsolutePath()
+                + "' does not appear to exist.");
       }
     }
 
     try {
       executorService.shutdown();
       executorService.awaitTermination(60, TimeUnit.MINUTES);
-    }
-    catch (InterruptedException e) {
+    } catch (InterruptedException e) {
       e.printStackTrace();
     }
 
@@ -459,22 +508,22 @@ public class RebindUtils {
   public static String getModuleName(final GeneratorContext context) {
     try {
       return getModuleDef(context).getCanonicalName();
-    }
-    catch (Throwable t) {
+    } catch (Throwable t) {
       return null;
     }
   }
 
-
   /**
-   * Returns the list of translatable packages in the module that caused the generator to run (the module under
-   * compilation).
+   * Returns the list of translatable packages in the module that caused the
+   * generator to run (the module under compilation).
    */
-  public static Set<String> findTranslatablePackagesInModule(final GeneratorContext context) {
+  public static Set<String> findTranslatablePackagesInModule(
+          final GeneratorContext context) {
     final Set<String> packages = new HashSet<String>();
     try {
       final StandardGeneratorContext stdContext = (StandardGeneratorContext) context;
-      final Field field = StandardGeneratorContext.class.getDeclaredField("module");
+      final Field field = StandardGeneratorContext.class
+              .getDeclaredField("module");
       field.setAccessible(true);
       final Object o = field.get(stdContext);
 
@@ -484,23 +533,27 @@ public class RebindUtils {
         return Collections.emptySet();
       }
 
-      // moduleName looks like "com.foo.xyz.MyModule" and we just want the package part
+      // moduleName looks like "com.foo.xyz.MyModule" and we just want the
+      // package part
       // for tests .JUnit is appended to the module name by GWT
-      final String moduleName = moduleDef.getCanonicalName().replace(".JUnit", "");
+      final String moduleName = moduleDef.getCanonicalName().replace(".JUnit",
+              "");
       final int endIndex = moduleName.lastIndexOf('.');
-      final String modulePackage = endIndex == -1 ? "" : moduleName.substring(0, endIndex);
+      final String modulePackage = endIndex == -1 ? "" : moduleName.substring(
+              0, endIndex);
 
       for (final String packageName : findTranslatablePackages(context)) {
         if (packageName != null && packageName.startsWith(modulePackage)) {
           packages.add(packageName);
         }
       }
-    }
-    catch (NoSuchFieldException e) {
-      logger.error("the version of GWT you are running does not appear to be compatible with this version of Errai", e);
-      throw new RuntimeException("could not access the module field in the GeneratorContext");
-    }
-    catch (Exception e) {
+    } catch (NoSuchFieldException e) {
+      logger.error(
+              "the version of GWT you are running does not appear to be compatible with this version of Errai",
+              e);
+      throw new RuntimeException(
+              "could not access the module field in the GeneratorContext");
+    } catch (Exception e) {
       throw new RuntimeException("could not determine module package", e);
     }
 
@@ -511,10 +564,13 @@ public class RebindUtils {
   private static volatile Set<String> _translatablePackagesCache;
 
   /**
-   * Returns a list of all translatable packages accessible to the module under compilation (including inherited modules).
+   * Returns a list of all translatable packages accessible to the module under
+   * compilation (including inherited modules).
    */
-  public static Set<String> findTranslatablePackages(final GeneratorContext context) {
-    if (context.equals(_lastTranslatableContext) && _translatablePackagesCache != null) {
+  public static Set<String> findTranslatablePackages(
+          final GeneratorContext context) {
+    if (context.equals(_lastTranslatableContext)
+            && _translatablePackagesCache != null) {
       return _translatablePackagesCache;
     }
     _lastTranslatableContext = context;
